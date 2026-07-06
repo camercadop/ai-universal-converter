@@ -23,7 +23,7 @@ export class RatioConverter extends BaseConverter {
    * @param {number} value - The numeric value to convert.
    * @param {string} from - The source unit.
    * @param {string} to - The target unit.
-   * @returns {number} The converted value rounded to 5 decimal places.
+   * @returns {number} The converted value rounded to 9 decimal places.
    * @throws {Error} If value or units are invalid.
    */
   static convert(value: number, from: string, to: string): number {
@@ -36,6 +36,7 @@ export class RatioConverter extends BaseConverter {
 
     const result =
       (value * FACTORS[from.toLowerCase()]!) / FACTORS[to.toLowerCase()]!
-    return Math.round(result * 100_000) / 100_000
+    // Increase precision to 9 decimal places to avoid precision loss
+    return Math.round(result * 1_000_000_000) / 1_000_000_000
   }
 }

@@ -8,9 +8,11 @@ beforeAll(async () => {
 })
 
 describe('tool-schemas', () => {
-  it('should define 4 tool schemas', () => {
+  it('should define expected tool schemas', () => {
     const toolSchemas = buildToolSchemas()
-    expect(toolSchemas).toHaveLength(4)
+    // We expect schemas for each discovered converter (area, distance, energy,
+    // speed, storage, temperature, time, volume, weight)
+    expect(toolSchemas).toHaveLength(9)
   })
 
   it('each schema should have required structure', () => {
@@ -27,7 +29,10 @@ describe('tool-executor', () => {
   it('should execute convertDistance', () => {
     const result = executeTool({
       id: 'call_1',
-      function: { name: 'convertDistance', arguments: '{"value":50,"from":"km","to":"mi"}' },
+      function: {
+        name: 'convertDistance',
+        arguments: '{"value":50,"from":"km","to":"mi"}',
+      },
     })
     expect(result.tool_call_id).toBe('call_1')
     expect(result.result).toBeCloseTo(31.06856, 4)
@@ -36,7 +41,10 @@ describe('tool-executor', () => {
   it('should execute convertWeight', () => {
     const result = executeTool({
       id: 'call_2',
-      function: { name: 'convertWeight', arguments: '{"value":1,"from":"kg","to":"lb"}' },
+      function: {
+        name: 'convertWeight',
+        arguments: '{"value":1,"from":"kg","to":"lb"}',
+      },
     })
     expect(result.result).toBeCloseTo(2.20462, 4)
   })
@@ -44,7 +52,10 @@ describe('tool-executor', () => {
   it('should execute convertTemperature', () => {
     const result = executeTool({
       id: 'call_3',
-      function: { name: 'convertTemperature', arguments: '{"value":100,"from":"c","to":"f"}' },
+      function: {
+        name: 'convertTemperature',
+        arguments: '{"value":100,"from":"c","to":"f"}',
+      },
     })
     expect(result.result).toBe(212)
   })
@@ -52,7 +63,10 @@ describe('tool-executor', () => {
   it('should execute convertStorage', () => {
     const result = executeTool({
       id: 'call_4',
-      function: { name: 'convertStorage', arguments: '{"value":1,"from":"gb","to":"mb"}' },
+      function: {
+        name: 'convertStorage',
+        arguments: '{"value":1,"from":"gb","to":"mb"}',
+      },
     })
     expect(result.result).toBe(1024)
   })
@@ -68,7 +82,10 @@ describe('tool-executor', () => {
   it('should return error for invalid arguments', () => {
     const result = executeTool({
       id: 'call_6',
-      function: { name: 'convertDistance', arguments: '{"value":10,"from":"km","to":"xyz"}' },
+      function: {
+        name: 'convertDistance',
+        arguments: '{"value":10,"from":"km","to":"xyz"}',
+      },
     })
     expect(result.result).toContain('Invalid unit')
   })
