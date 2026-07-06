@@ -1,5 +1,7 @@
+import chalk from 'chalk'
 import { ConversionEngine } from '../app.ts'
 import { LLMRuntime } from '../runtime/llm-runtime.ts'
+import { logger } from '../logger.ts'
 
 /**
  * High-level agent that initializes the conversion engine and exposes a chat interface.
@@ -26,6 +28,7 @@ export class ConverterAgent {
    */
   async init(): Promise<void> {
     await ConversionEngine.init()
+    logger.info('ConverterAgent', `Initialized with types: ${chalk.cyan.bold(ConversionEngine.getAvailableTypes().join(', '))}`)
   }
 
   /**

@@ -1,11 +1,13 @@
 import 'dotenv/config'
 import OpenAI from 'openai'
+import chalk from 'chalk'
 import type {
   ChatCompletionMessageParam,
   ChatCompletionToolMessageParam,
 } from 'openai/resources/chat/completions'
 import { buildToolSchemas } from '../schemas/tool-schemas.ts'
 import { executeTool, type ToolCallInput } from './tool-executor.ts'
+import { logger } from '../logger.ts'
 
 /** @type {string} System prompt for the conversion assistant. */
 const SYSTEM_PROMPT =
@@ -40,15 +42,16 @@ export class LLMRuntime {
    * @returns {Promise<string>} The assistant's final text response.
    */
   async chat(userMessage: string): Promise<string> {
+    logger.info('LLMRuntime', `User message received`, { length: userMessage.length })
+    logger.debug('LLMRuntime', `System prompt: ${chalk.dim(SYSTEM_PROMPT)}`)
+    logger.debug('LLMRuntime', `User prompt: ${chalk.white(userMessage)}`)
     const messages: ChatCompletionMessageParam[] = [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userMessage },
     ]
 
-    // The model may chain multiple sequential tool calls before producing a final text
-    // response — each iteration re-submits accumulated context so the model can decide
-    // whether it needs another tool call or is ready to answer.
     while (true) {
+      logger.debug('LLMRuntime', `Sending request to OpenAI`, { model: this.model, messageCount: messages.length })
       const response = await this.client.chat.completions.create({
         model: this.model,
         messages,
@@ -64,6 +67,7 @@ export class LLMRuntime {
         choice.finish_reason === 'tool_calls' &&
         assistantMessage.tool_calls
       ) {
+        logger.info('LLMRuntime', `Tool calls requested: ${chalk.yellow.bold(assistantMessage.tool_calls.map(tc => (tc as ToolCallInput).function.name).join(', '))}`)
         const toolMessages: ChatCompletionToolMessageParam[] =
           assistantMessage.tool_calls.map((tc) => {
             const result = executeTool(tc as ToolCallInput)
@@ -77,6 +81,7 @@ export class LLMRuntime {
         continue
       }
 
+      logger.info('LLMRuntime', `Final response received`, { length: assistantMessage.content?.length ?? 0 })
       return assistantMessage.content ?? ''
     }
   }

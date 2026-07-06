@@ -1,4 +1,6 @@
+import chalk from 'chalk'
 import { ConversionEngine } from '../app.ts'
+import { logger } from '../logger.ts'
 
 /**
  * Represents an OpenAI tool call input.
@@ -35,6 +37,7 @@ export function executeTool(toolCall: ToolCallInput): ToolCallResult {
   const type = name.replace('convert', '').toLowerCase()
 
   if (!ConversionEngine.getAvailableTypes().includes(type)) {
+    logger.warn('ToolExecutor', `Unknown tool requested: ${chalk.red(name)}`)
     return { tool_call_id: toolCall.id, result: `Unknown tool: ${name}` }
   }
 
@@ -44,10 +47,13 @@ export function executeTool(toolCall: ToolCallInput): ToolCallResult {
       from: string
       to: string
     }
+    logger.debug('ToolExecutor', `Executing ${chalk.yellow(name)}`, { value, from, to })
     const result = ConversionEngine.convert(type, value, from, to)
+    logger.info('ToolExecutor', `${chalk.yellow(name)} → ${chalk.green.bold(String(result))}`)
     return { tool_call_id: toolCall.id, result }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Execution failed'
+    logger.error('ToolExecutor', `${chalk.yellow(name)} failed: ${chalk.red(message)}`)
     return { tool_call_id: toolCall.id, result: message }
   }
 }

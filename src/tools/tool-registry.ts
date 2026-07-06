@@ -1,6 +1,8 @@
 import { readdirSync } from 'fs'
 import { join, basename } from 'path'
+import chalk from 'chalk'
 import type { BaseConverter } from './base/base-converter.ts'
+import { logger } from '../logger.ts'
 
 type ConverterClass = typeof BaseConverter & {
   convert(value: number, from: string, to: string): number
@@ -19,6 +21,8 @@ async function loadConverters(): Promise<void> {
     (f) => f.startsWith('convert-') && f.endsWith('.ts')
   )
 
+  logger.info('ToolRegistry', `Discovering converters in ${chalk.dim(toolsDir)}`, { fileCount: files.length })
+
   for (const file of files) {
     const name = basename(file, '.ts').replace('convert-', '')
     const module = await import(join(toolsDir, file))
@@ -29,6 +33,7 @@ async function loadConverters(): Promise<void> {
 
     if (exportedClass) {
       converters.set(name, exportedClass)
+      logger.debug('ToolRegistry', `Registered converter: ${chalk.cyan(name)}`)
     }
   }
 }

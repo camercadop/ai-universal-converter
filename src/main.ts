@@ -5,6 +5,7 @@
  */
 
 import { createInterface } from 'readline'
+import chalk from 'chalk'
 import { ConverterAgent } from './agent/converter-agent.ts'
 
 const agent = new ConverterAgent()
@@ -18,17 +19,20 @@ const rl = createInterface({ input: process.stdin, output: process.stdout })
  * @returns {void}
  */
 const prompt = () =>
-  rl.question('\nYou: ', async (input) => {
+  rl.question(`\n${chalk.blue.bold('You')}: `, async (input) => {
     if (!input || input === 'exit') return rl.close()
 
     try {
       const response = await agent.ask(input)
-      console.log(`\nAssistant: ${response}`)
+      console.log(`\n${chalk.green.bold('Assistant')}: ${response}`)
     } catch (err) {
-      console.error('\nError:', (err as Error).message)
+      console.error(`\n${chalk.red.bold('Error')}: ${(err as Error).message}`)
     }
     prompt()
   })
 
-console.log('AI Universal Converter (type "exit" to quit)')
+console.log(
+  chalk.cyan.bold('\nAI Universal Converter') +
+    chalk.dim(' (type "exit" to quit)')
+)
 prompt()
