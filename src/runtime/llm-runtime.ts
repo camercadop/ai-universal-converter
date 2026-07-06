@@ -7,10 +7,6 @@ import { executeTool, type ToolCallInput } from './tool-executor.ts'
 import { ConversationManager } from './conversation-manager.ts'
 import { logger } from '../logger.ts'
 
-/** @type {string} System prompt for the conversion assistant. */
-const SYSTEM_PROMPT =
-  'You are a unit conversion assistant. Use the provided tools to perform conversions. Be concise in your responses.'
-
 /**
  * Wraps the OpenAI Chat Completions API with tool-calling support and conversational memory.
  *
@@ -27,12 +23,18 @@ export class LLMRuntime {
   /**
    * Creates an LLMRuntime instance.
    *
+   * @param {string} systemPrompt - The system prompt defining assistant behavior.
    * @param {string} [model='gpt-4o-mini'] - The OpenAI model to use.
    */
-  constructor(model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini') {
+  constructor(
+    systemPrompt: string,
+    model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+  ) {
     this.client = new OpenAI()
     this.model = model
-    this.conversation = new ConversationManager(SYSTEM_PROMPT, { model: model as any })
+    this.conversation = new ConversationManager(systemPrompt, {
+      model: model as any,
+    })
   }
 
   /**
@@ -56,7 +58,6 @@ export class LLMRuntime {
     logger.info('LLMRuntime', `User message received`, {
       length: userMessage.length,
     })
-    logger.debug('LLMRuntime', `System prompt: ${chalk.dim(SYSTEM_PROMPT)}`)
     logger.debug('LLMRuntime', `User prompt: ${chalk.white(userMessage)}`)
 
     // Add the user message to the persistent conversation history
@@ -127,7 +128,7 @@ export class LLMRuntime {
    *
    * @returns {void}
    */
-  resetSession(): void {
-    this.conversation.clear(SYSTEM_PROMPT)
+  resetSession(systemPrompt: string): void {
+    this.conversation.clear(systemPrompt)
   }
 }

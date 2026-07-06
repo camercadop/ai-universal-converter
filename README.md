@@ -34,15 +34,18 @@ The project evolves incrementally, allowing experimentation with:
 ```
 src/
 ├── agent/
-│   └── converter-agent.ts
+│   ├── converter-agent.ts
+│   └── prompts.ts
 ├── runtime/
 │   ├── llm-runtime.ts
 │   ├── tool-executor.ts
 │   └── conversation-manager.ts
 ├── tools/
 │   ├── base/
+│   │   ├── tool.ts
 │   │   ├── base-converter.ts
 │   │   └── ratio-converter.ts
+│   ├── calculate.ts
 │   ├── convert-*.ts
 │   └── tool-registry.ts
 ├── schemas/
@@ -55,15 +58,22 @@ src/
 
 ## Architecture
 
-### Converter Hierarchy
+### Tool Hierarchy
 
 ```
-BaseConverter              → shared validation (validateUnit, validateValue)
-├── RatioConverter         → ratio-based convert logic (FACTORS + convert)
-│   ├── ConvertDistance
-│   ├── ConvertWeight
-│   └── ConvertStorage
-└── ConvertTemperature     → formula-based (owns its own convert)
+Tool (abstract)                → schema + execute contract
+├── BaseConverter              → shared validation + schema generation from units/toolDescription
+│   ├── RatioConverter         → ratio-based convert logic (FACTORS + convert)
+│   │   ├── ConvertDistance
+│   │   ├── ConvertWeight
+│   │   ├── ConvertStorage
+│   │   ├── ConvertArea
+│   │   ├── ConvertVolume
+│   │   ├── ConvertSpeed
+│   │   ├── ConvertEnergy
+│   │   └── ConvertTime
+│   └── ConvertTemperature     → formula-based (owns its own convert)
+└── Calculate                  → general-purpose math expression evaluator
 ```
 
 ### C4 Level 2 — Container Diagram
@@ -76,11 +86,10 @@ flowchart TD
         Main["main.ts\n(CLI Entry Point)"]
         Agent["ConverterAgent\n(Orchestrator)"]
         Runtime["LLMRuntime\n(OpenAI Chat + Tool Loop)"]
-        Executor["ToolExecutor\n(Dispatch & Parse)"]
-        Engine["ConversionEngine\n(Facade)"]
+        Executor["ToolExecutor\n(Dispatch)"]
         Registry["ToolRegistry\n(Auto-Discovery)"]
         Schemas["ToolSchemas\n(Dynamic Schema Builder)"]
-        Converters["Converters"]
+        Tools["Tools\n(Converters + Calculate)"]
     end
 
     OpenAI["☁️ OpenAI API"]
@@ -91,9 +100,8 @@ flowchart TD
     Runtime -->|messages + schemas| OpenAI
     OpenAI -->|tool_calls / response| Runtime
     Runtime --> Executor
-    Executor --> Engine
-    Engine --> Registry
-    Registry --> Converters
+    Executor --> Registry
+    Registry --> Tools
     Runtime --> Schemas
     Schemas --> Registry
 ```
@@ -110,16 +118,17 @@ sequenceDiagram
     participant LLMRuntime
     participant OpenAI API
     participant ToolExecutor
-    participant ConversionEngine
+    participant ToolRegistry
 
     User->>CLI (main.ts): Natural language input
     CLI (main.ts)->>ConverterAgent: ask(message)
     ConverterAgent->>LLMRuntime: chat(message)
     LLMRuntime->>OpenAI API: messages + tool schemas
-    OpenAI API-->>LLMRuntime: tool_calls (e.g. convertDistance)
+    OpenAI API-->>LLMRuntime: tool_calls (e.g. convertDistance, calculate)
     LLMRuntime->>ToolExecutor: executeTool(toolCall)
-    ToolExecutor->>ConversionEngine: convert(type, value, from, to)
-    ConversionEngine-->>ToolExecutor: numeric result
+    ToolExecutor->>ToolRegistry: getTool(name)
+    ToolRegistry-->>ToolExecutor: Tool class
+    ToolExecutor->>ToolExecutor: tool.execute(rawArgs)
     ToolExecutor-->>LLMRuntime: ToolCallResult
     LLMRuntime->>OpenAI API: messages + tool results
     OpenAI API-->>LLMRuntime: final text response
@@ -130,20 +139,20 @@ sequenceDiagram
 
 ### Initialization Flow
 
-At startup, the system auto-discovers converters and builds tool schemas dynamically:
+At startup, the system auto-discovers all tools and builds schemas dynamically:
 
 ```mermaid
 flowchart TD
     A[main.ts] --> B[ConverterAgent.init]
     B --> C[ConversionEngine.init]
-    C --> D[tool-registry: loadConverters]
-    D --> E[Scan tools/ for convert-*.ts files]
-    E --> F[Import & register each converter]
-    F --> G[Converters Map populated]
+    C --> D[tool-registry: loadTools]
+    D --> E[Scan tools/ for .ts files]
+    E --> F[Import & register each Tool class]
+    F --> G[Tools Map populated]
     G --> H[LLMRuntime.chat called]
     H --> I[buildToolSchemas]
-    I --> J[Read getAllConverters]
-    J --> K[Generate OpenAI function schemas]
+    I --> J[Read getAllTools]
+    J --> K[Wrap each tool.schema as ChatCompletionTool]
 ```
 
 ### Tool Call Loop
@@ -182,7 +191,7 @@ flowchart TD
 
 ### Auto-Discovery
 
-The `tool-registry.ts` module automatically discovers all `convert-*.ts` files in the `tools/` directory at runtime. Adding a new converter requires zero manual registration — just create the file.
+The `tool-registry.ts` module automatically discovers all `.ts` files in the `tools/` directory at runtime. Any exported class with a static `schema` and `execute` method (the `Tool` contract) is registered automatically. Adding a new tool requires zero manual registration — just create the file.
 
 ```typescript
 import { ConversionEngine } from './app.ts'
@@ -190,7 +199,7 @@ import { ConversionEngine } from './app.ts'
 await ConversionEngine.init()
 
 ConversionEngine.convert('distance', 50, 'km', 'mi')
-ConversionEngine.getAvailableTypes() // ['distance', 'weight', 'storage', 'temperature']
+ConversionEngine.getAvailableTypes() // ['distance', 'weight', 'storage', 'temperature', ...]
 ```
 
 ### Adding a New Converter
@@ -201,10 +210,42 @@ Create a file `src/tools/convert-speed.ts`:
 import { RatioConverter } from './base/ratio-converter.ts'
 
 export class ConvertSpeed extends RatioConverter {
+  static readonly toolDescription = 'Convert between speed units.'
   protected static readonly FACTORS = {
     'km/h': 1,
     'mph': 1.60934,
     'm/s': 3.6,
+  }
+}
+```
+
+No additional registration needed.
+
+### Adding a New Standalone Tool
+
+Create a file `src/tools/my-tool.ts`:
+
+```typescript
+import type { FunctionDefinition } from 'openai/resources/shared'
+import { Tool } from './base/tool.ts'
+
+export class MyTool extends Tool {
+  static readonly schema: FunctionDefinition = {
+    name: 'myTool',
+    description: 'Does something useful.',
+    parameters: {
+      type: 'object',
+      properties: {
+        input: { type: 'string', description: 'The input.' },
+      },
+      required: ['input'],
+    },
+  }
+
+  static execute(rawArgs: string): number | string {
+    const { input } = JSON.parse(rawArgs)
+    // ... tool logic
+    return result
   }
 }
 ```
@@ -244,10 +285,12 @@ Assistant: 62.14 × 2 = 124.27 miles.
 
 Type `reset` in the CLI to clear the session and start fresh.
 
-### Complex Reasoning
+### Complex Reasoning (Agentic)
 ```
 I will travel 350 km. My car consumes 8 liters per 100 km and fuel costs 15,000 COP per gallon. Estimate my trip expenses.
 ```
+
+The LLM breaks this into steps, using `calculate` for arithmetic and `convertVolume` for unit conversion, then combines the results into a final answer.
 
 ## Installation
 

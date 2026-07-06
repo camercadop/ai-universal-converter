@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { ConversionEngine } from '../app.ts'
+import { getTool } from '../tools/tool-registry.ts'
 import { logger } from '../logger.ts'
 
 /**
@@ -21,7 +21,7 @@ export interface ToolCallInput {
  *
  * @interface ToolCallResult
  * @property {string} tool_call_id - The original tool call identifier.
- * @property {number | string} result - The conversion result or error message.
+ * @property {number | string} result - The tool result or error message.
  */
 export interface ToolCallResult {
   tool_call_id: string
@@ -29,11 +29,10 @@ export interface ToolCallResult {
 }
 
 /**
- * Executes an OpenAI tool call by dispatching to the local ConversionEngine.
+ * Executes an OpenAI tool call by dispatching to the appropriate registered tool.
  *
- * This function processes OpenAI function call requests, validates the tool type,
- * parses the arguments, and executes the conversion using the ConversionEngine.
- * It includes comprehensive error handling and logging for debugging.
+ * Looks up the tool by name in the registry and calls its execute method.
+ * Includes comprehensive error handling and logging for debugging.
  *
  * @param {ToolCallInput} toolCall - The tool call to execute, containing the function name and arguments.
  *
@@ -43,48 +42,29 @@ export function executeTool(toolCall: ToolCallInput): ToolCallResult {
   // Extract function name and raw arguments from the tool call
   const { name, arguments: rawArgs } = toolCall.function
 
-  // Derive the converter type from the function name (e.g., "convertDistance" -> "distance")
-  const type = name.replace('convert', '').toLowerCase()
-
-  // Validate that the requested tool type is available in the ConversionEngine
-  if (!ConversionEngine.getAvailableTypes().includes(type)) {
+  // Look up the tool in the registry
+  const tool = getTool(name)
+  if (!tool) {
     logger.warn('ToolExecutor', `Unknown tool requested: ${chalk.red(name)}`)
     return { tool_call_id: toolCall.id, result: `Unknown tool: ${name}` }
   }
 
   try {
-    // Parse the JSON arguments from the OpenAI tool call
-    const { value, from, to } = JSON.parse(rawArgs) as {
-      value: number
-      from: string
-      to: string
-    }
-
     // Log the execution details for debugging and monitoring
-    logger.debug('ToolExecutor', `Executing ${chalk.yellow(name)}`, {
-      value,
-      from,
-      to,
-    })
+    logger.debug('ToolExecutor', `Executing ${chalk.yellow(name)}`, { rawArgs })
 
-    // Perform the actual conversion using the ConversionEngine
-    const result = ConversionEngine.convert(type, value, from, to)
+    // Execute the tool with the raw arguments
+    const result = tool.execute(rawArgs)
 
     // Log successful execution with the result
-    logger.info(
-      'ToolExecutor',
-      `${chalk.yellow(name)} → ${chalk.green.bold(String(result))}`
-    )
+    logger.info('ToolExecutor', `${chalk.yellow(name)} → ${chalk.green.bold(String(result))}`)
 
     // Return the successful result with the original tool call ID
     return { tool_call_id: toolCall.id, result }
   } catch (error) {
-    // Handle any errors during argument parsing or conversion execution
+    // Handle any errors during argument parsing or execution
     const message = error instanceof Error ? error.message : 'Execution failed'
-    logger.error(
-      'ToolExecutor',
-      `${chalk.yellow(name)} failed: ${chalk.red(message)}`
-    )
+    logger.error('ToolExecutor', `${chalk.yellow(name)} failed: ${chalk.red(message)}`)
     return { tool_call_id: toolCall.id, result: message }
   }
 }

@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { ConversionEngine } from '../app.ts'
+import { loadTools } from '../tools/tool-registry.ts'
 import { executeTool } from '../runtime/tool-executor.ts'
 
 beforeAll(async () => {
-  await ConversionEngine.init()
+  await loadTools()
 })
 
 describe('multi-tool execution', () => {

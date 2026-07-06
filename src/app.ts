@@ -1,23 +1,33 @@
-import { loadConverters, getConverter, getAvailableConverters } from './tools/tool-registry.ts'
+import { loadTools, getTool, getAvailableToolNames } from './tools/tool-registry.ts'
 
+/**
+ * Facade for the conversion/tool engine.
+ * Initializes tool discovery and provides a simple API for direct tool execution.
+ */
 export class ConversionEngine {
   static async init(): Promise<void> {
-    await loadConverters()
+    await loadTools()
   }
 
   static convert(type: string, value: number, from: string, to: string): number {
-    const converter = getConverter(type)
-    if (!converter) {
+    // Converter tools are registered as "convertDistance", "convertWeight", etc.
+    const name = `convert${type.charAt(0).toUpperCase()}${type.slice(1)}`
+    const tool = getTool(name)
+    if (!tool) {
       throw new Error(
-        `Unknown converter: ${type}. Available: ${getAvailableConverters().join(', ')}`
+        `Unknown converter: ${type}. Available: ${getAvailableToolNames().join(', ')}`
       )
     }
-    return converter.convert(value, from, to)
+    const result = tool.execute(JSON.stringify({ value, from, to }))
+    if (typeof result !== 'number') {
+      throw new Error(`Conversion failed: ${result}`)
+    }
+    return result
   }
 
   static getAvailableTypes(): string[] {
-    return getAvailableConverters()
+    return getAvailableToolNames()
+      .filter((name) => name.startsWith('convert'))
+      .map((name) => name.replace('convert', '').toLowerCase())
   }
 }
-
-export { getConverter, getAvailableConverters }

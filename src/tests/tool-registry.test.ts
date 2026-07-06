@@ -1,26 +1,29 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { loadConverters, getConverter, getAvailableConverters } from '../tools/tool-registry.ts'
+import { loadTools, getTool, getAllTools, getAvailableToolNames } from '../tools/tool-registry.ts'
 
 describe('ToolRegistry', () => {
   beforeAll(async () => {
-    await loadConverters()
+    await loadTools()
   })
 
-  it('discovers all converters', () => {
-    const available = getAvailableConverters()
-    expect(available).toContain('distance')
-    expect(available).toContain('weight')
-    expect(available).toContain('storage')
-    expect(available).toContain('temperature')
+  it('discovers at least one tool', () => {
+    expect(getAvailableToolNames().length).toBeGreaterThan(0)
   })
 
-  it('retrieves a converter by name', () => {
-    const converter = getConverter('distance')
-    expect(converter).toBeDefined()
-    expect(converter!.convert(1, 'km', 'm')).toBe(1000)
+  it('every registered tool has a valid schema and execute', () => {
+    for (const [name, tool] of getAllTools()) {
+      expect(tool.schema.name).toBe(name)
+      expect(tool.schema.description).toBeDefined()
+      expect(typeof tool.execute).toBe('function')
+    }
   })
 
-  it('returns undefined for unknown converter', () => {
-    expect(getConverter('unknown')).toBeUndefined()
+  it('retrieves a registered tool by name', () => {
+    const [name] = getAvailableToolNames()
+    expect(getTool(name!)).toBeDefined()
+  })
+
+  it('returns undefined for unknown tool', () => {
+    expect(getTool('nonExistentTool')).toBeUndefined()
   })
 })

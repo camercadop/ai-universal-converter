@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { ConversionEngine } from '../app.ts'
 import { LLMRuntime } from '../runtime/llm-runtime.ts'
 import { logger } from '../logger.ts'
+import { SYSTEM_PROMPT } from './prompts.ts'
 
 /**
  * High-level agent that initializes the conversion engine and exposes a chat interface.
@@ -18,7 +19,9 @@ export class ConverterAgent {
    * @param {string} [model] - The OpenAI model to use.
    */
   constructor(model?: string) {
-    this.runtime = new LLMRuntime(model)
+    this.runtime = model
+      ? new LLMRuntime(SYSTEM_PROMPT, model)
+      : new LLMRuntime(SYSTEM_PROMPT)
   }
 
   /**
@@ -48,7 +51,7 @@ export class ConverterAgent {
    * @returns {void}
    */
   resetSession(): void {
-    this.runtime.resetSession()
+    this.runtime.resetSession(SYSTEM_PROMPT)
     logger.info('ConverterAgent', 'Session reset')
   }
 }
