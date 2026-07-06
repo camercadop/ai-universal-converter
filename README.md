@@ -40,10 +40,11 @@ src/
 │   ├── tool-executor.ts
 │   └── conversation-manager.ts
 ├── tools/
-│   ├── convert-distance.ts
-│   ├── convert-weight.ts
-│   ├── convert-temperature.ts
-│   └── convert-storage.ts
+│   ├── base/
+│   │   ├── base-converter.ts
+│   │   └── ratio-converter.ts
+│   ├── convert-*.ts
+│   └── tool-registry.ts
 ├── schemas/
 │   └── tool-schemas.ts
 ├── models/
@@ -54,6 +55,50 @@ src/
 ├── tests/
 └── app.ts
 ```
+
+## Architecture
+
+### Converter Hierarchy
+
+```
+BaseConverter              → shared validation (validateUnit, validateValue)
+├── RatioConverter         → ratio-based convert logic (FACTORS + convert)
+│   ├── ConvertDistance
+│   ├── ConvertWeight
+│   └── ConvertStorage
+└── ConvertTemperature     → formula-based (owns its own convert)
+```
+
+### Auto-Discovery
+
+The `tool-registry.ts` module automatically discovers all `convert-*.ts` files in the `tools/` directory at runtime. Adding a new converter requires zero manual registration — just create the file.
+
+```typescript
+import { ConversionEngine } from './app.ts'
+
+await ConversionEngine.init()
+
+ConversionEngine.convert('distance', 50, 'km', 'mi')
+ConversionEngine.getAvailableTypes() // ['distance', 'weight', 'storage', 'temperature']
+```
+
+### Adding a New Converter
+
+Create a file `src/tools/convert-speed.ts`:
+
+```typescript
+import { RatioConverter } from './base/ratio-converter.ts'
+
+export class ConvertSpeed extends RatioConverter {
+  protected static readonly FACTORS = {
+    'km/h': 1,
+    'mph': 1.60934,
+    'm/s': 3.6,
+  }
+}
+```
+
+No additional registration needed.
 
 ## Technology Stack
 
