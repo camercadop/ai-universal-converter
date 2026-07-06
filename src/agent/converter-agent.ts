@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import type { z } from 'zod'
 import { ConversionEngine } from '../app.ts'
 import { LLMRuntime } from '../runtime/llm-runtime.ts'
 import { logger } from '../logger.ts'
@@ -43,6 +44,23 @@ export class ConverterAgent {
    */
   async ask(message: string): Promise<string> {
     return this.runtime.chat(message)
+  }
+
+  /**
+   * Sends a natural language message and returns a schema-validated structured response.
+   *
+   * @param {string} message - The user's input message.
+   * @param {T} schema - A Zod schema defining the expected response shape.
+   * @param {string} name - A name for the response format.
+   *
+   * @returns {Promise<z.infer<T>>} The validated structured response.
+   */
+  async askStructured<T extends z.ZodType>(
+    message: string,
+    schema: T,
+    name: string
+  ): Promise<z.infer<T>> {
+    return this.runtime.structuredChat(message, schema, name)
   }
 
   /**

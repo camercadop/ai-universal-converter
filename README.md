@@ -259,7 +259,6 @@ No additional registration needed.
 - **LLM**: OpenAI SDK
 - **Token Management**: tiktoken
 - **Validation**: Zod
-- **Database**: SQLite
 - **Testing**: Vitest
 
 ## Usage Examples
@@ -339,4 +338,5 @@ The project will be considered successful when it demonstrates:
 - Multi-step reasoning
 - Context-aware conversations
 - Agentic workflows within the conversion domain
+- Structured Outputs with schema-validated LLM responses
 - An extensible architecture suitable for future experimentation

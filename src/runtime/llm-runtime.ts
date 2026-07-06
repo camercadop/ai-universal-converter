@@ -2,6 +2,8 @@ import 'dotenv/config'
 import OpenAI from 'openai'
 import chalk from 'chalk'
 import type { ChatCompletionToolMessageParam } from 'openai/resources/chat/completions'
+import { zodResponseFormat } from 'openai/helpers/zod'
+import type { z } from 'zod'
 import { buildToolSchemas } from '../schemas/tool-schemas.ts'
 import { executeTool, type ToolCallInput } from './tool-executor.ts'
 import { ConversationManager } from './conversation-manager.ts'
@@ -121,6 +123,79 @@ export class LLMRuntime {
 
       return assistantMessage.content ?? ''
     }
+  }
+
+  /**
+   * Sends a user message and returns a structured, schema-validated response.
+   *
+   * Uses OpenAI's response_format with a Zod schema to enforce deterministic JSON output.
+   * Tool calls are resolved before requesting the structured final response.
+   *
+   * @param {string} userMessage - The user's natural language input.
+   * @param {T} schema - A Zod object schema defining the expected response shape.
+   * @param {string} name - A name for the response format (used by OpenAI).
+   *
+   * @returns {Promise<z.infer<T>>} The parsed and validated response object.
+   */
+  async structuredChat<T extends z.ZodType>(
+    userMessage: string,
+    schema: T,
+    name: string
+  ): Promise<z.infer<T>> {
+    logger.info('LLMRuntime', `Structured chat requested`, { name })
+
+    this.conversation.addMessage({ role: 'user', content: userMessage })
+
+    // Resolve tool calls first (same loop as chat)
+    while (true) {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: this.conversation.getMessages(),
+        tools: buildToolSchemas(),
+      })
+
+      const choice = response.choices[0]!
+      const assistantMessage = choice.message
+      this.conversation.addMessage(assistantMessage)
+
+      if (
+        choice.finish_reason === 'tool_calls' &&
+        assistantMessage.tool_calls
+      ) {
+        const toolMessages: ChatCompletionToolMessageParam[] =
+          assistantMessage.tool_calls.map((tc) => {
+            const result = executeTool(tc as ToolCallInput)
+            return {
+              role: 'tool' as const,
+              tool_call_id: result.tool_call_id,
+              content: String(result.result),
+            }
+          })
+        this.conversation.addMessages(toolMessages)
+        continue
+      }
+
+      break
+    }
+
+    // Now request a structured response using the schema
+    const structured = await this.client.chat.completions.create({
+      model: this.model,
+      messages: [
+        ...this.conversation.getMessages(),
+        {
+          role: 'user',
+          content: 'Respond with the structured JSON output for the conversion result.',
+        },
+      ],
+      response_format: zodResponseFormat(schema, name),
+    })
+
+    const content = structured.choices[0]!.message.content ?? '{}'
+    const parsed = schema.parse(JSON.parse(content))
+
+    logger.info('LLMRuntime', `Structured response validated`, { name })
+    return parsed
   }
 
   /**
