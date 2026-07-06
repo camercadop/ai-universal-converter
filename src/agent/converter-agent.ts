@@ -41,4 +41,14 @@ export class ConverterAgent {
   async ask(message: string): Promise<string> {
     return this.runtime.chat(message)
   }
+
+  /**
+   * Resets the conversation history, starting a fresh session.
+   *
+   * @returns {void}
+   */
+  resetSession(): void {
+    this.runtime.resetSession()
+    logger.info('ConverterAgent', 'Session reset')
+  }
 }

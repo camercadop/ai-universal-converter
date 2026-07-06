@@ -22,6 +22,12 @@ const prompt = () =>
   rl.question(`\n${chalk.blue.bold('You')}: `, async (input) => {
     if (!input || input === 'exit') return rl.close()
 
+    if (input === 'reset') {
+      agent.resetSession()
+      console.log(`\n${chalk.yellow.bold('Session reset.')}`)
+      return prompt()
+    }
+
     try {
       const response = await agent.ask(input)
       console.log(`\n${chalk.green.bold('Assistant')}: ${response}`)
@@ -33,6 +39,6 @@ const prompt = () =>
 
 console.log(
   chalk.cyan.bold('\nAI Universal Converter') +
-    chalk.dim(' (type "exit" to quit)')
+    chalk.dim(' (type "exit" to quit, "reset" to clear session)')
 )
 prompt()
