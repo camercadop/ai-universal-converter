@@ -1,0 +1,79 @@
+# Dependencies
+node_modules/
+.pnp.*
+.pnp.loader.mjs
+
+# Testing and Coverage
+coverage/
+.nyc_output/
+.vitest/
+
+# Build outputs
+lib/
+dist/
+build/
+*.tsbuildinfo
+
+# TypeScript cache
+tsc.log
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+
+# Distribution packages
+*.tgz
+
+# Yarn
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.pnp.*
+
+# npm
+npm-debug.log*
+nlrb.log*
+yarn.lock
+package-lock.json
+
+# Jest
+jest-coverage
+
+# SQLite databases
+database/*.db
+database/*.db-shm
+database/*.db-wal
+
+# Coverage reports
+coverage/
+
+# Build artifacts
+*.bundle.js
+*.bundle.js.map
+
+# Temporary files
+*.tmp
+*.temp
+
+# Editor backups
+*~
