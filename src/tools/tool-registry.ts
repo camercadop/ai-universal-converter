@@ -1,11 +1,14 @@
 import { readdirSync } from 'fs'
 import { join, basename } from 'path'
+import type { BaseConverter } from './base/base-converter.ts'
 
-type Converter = {
+type ConverterClass = typeof BaseConverter & {
   convert(value: number, from: string, to: string): number
+  units(): string[]
+  readonly toolDescription: string
 }
 
-const converters = new Map<string, Converter>()
+const converters = new Map<string, ConverterClass>()
 
 /**
  * Auto-discovers and registers all convert-* modules in the tools directory.
@@ -20,9 +23,9 @@ async function loadConverters(): Promise<void> {
     const name = basename(file, '.ts').replace('convert-', '')
     const module = await import(join(toolsDir, file))
     const exportedClass = Object.values(module).find(
-      (exp): exp is Converter =>
+      (exp): exp is ConverterClass =>
         typeof exp === 'function' && 'convert' in (exp as any)
-    ) as Converter | undefined
+    )
 
     if (exportedClass) {
       converters.set(name, exportedClass)
@@ -30,25 +33,17 @@ async function loadConverters(): Promise<void> {
   }
 }
 
-/**
- * Returns a registered converter by name.
- *
- * @param {string} name - The converter name (e.g. "distance", "weight").
- *
- * @returns {Converter | undefined}
- */
-function getConverter(name: string): Converter | undefined {
+function getConverter(name: string): ConverterClass | undefined {
   return converters.get(name)
 }
 
-/**
- * Returns all registered converter names.
- *
- * @returns {string[]}
- */
 function getAvailableConverters(): string[] {
   return [...converters.keys()]
 }
 
-export { loadConverters, getConverter, getAvailableConverters }
-export type { Converter }
+function getAllConverters(): Map<string, ConverterClass> {
+  return converters
+}
+
+export { loadConverters, getConverter, getAvailableConverters, getAllConverters }
+export type { ConverterClass }

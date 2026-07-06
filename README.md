@@ -69,6 +69,99 @@ BaseConverter              → shared validation (validateUnit, validateValue)
 └── ConvertTemperature     → formula-based (owns its own convert)
 ```
 
+### C4 Level 2 — Container Diagram
+
+```mermaid
+flowchart TD
+    User["👤 User\n(CLI)"]
+
+    subgraph System["AI Universal Converter"]
+        Main["main.ts\n(CLI Entry Point)"]
+        Agent["ConverterAgent\n(Orchestrator)"]
+        Runtime["LLMRuntime\n(OpenAI Chat + Tool Loop)"]
+        Executor["ToolExecutor\n(Dispatch & Parse)"]
+        Engine["ConversionEngine\n(Facade)"]
+        Registry["ToolRegistry\n(Auto-Discovery)"]
+        Schemas["ToolSchemas\n(Dynamic Schema Builder)"]
+        Converters["Converters"]
+    end
+
+    OpenAI["☁️ OpenAI API"]
+
+    User -->|natural language| Main
+    Main --> Agent
+    Agent --> Runtime
+    Runtime -->|messages + schemas| OpenAI
+    OpenAI -->|tool_calls / response| Runtime
+    Runtime --> Executor
+    Executor --> Engine
+    Engine --> Registry
+    Registry --> Converters
+    Runtime --> Schemas
+    Schemas --> Registry
+```
+
+### Application Flow
+
+The following diagram shows the complete request lifecycle from user input to final response:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI (main.ts)
+    participant ConverterAgent
+    participant LLMRuntime
+    participant OpenAI API
+    participant ToolExecutor
+    participant ConversionEngine
+
+    User->>CLI (main.ts): Natural language input
+    CLI (main.ts)->>ConverterAgent: ask(message)
+    ConverterAgent->>LLMRuntime: chat(message)
+    LLMRuntime->>OpenAI API: messages + tool schemas
+    OpenAI API-->>LLMRuntime: tool_calls (e.g. convertDistance)
+    LLMRuntime->>ToolExecutor: executeTool(toolCall)
+    ToolExecutor->>ConversionEngine: convert(type, value, from, to)
+    ConversionEngine-->>ToolExecutor: numeric result
+    ToolExecutor-->>LLMRuntime: ToolCallResult
+    LLMRuntime->>OpenAI API: messages + tool results
+    OpenAI API-->>LLMRuntime: final text response
+    LLMRuntime-->>ConverterAgent: response string
+    ConverterAgent-->>CLI (main.ts): response string
+    CLI (main.ts)-->>User: Assistant: ...
+```
+
+### Initialization Flow
+
+At startup, the system auto-discovers converters and builds tool schemas dynamically:
+
+```mermaid
+flowchart TD
+    A[main.ts] --> B[ConverterAgent.init]
+    B --> C[ConversionEngine.init]
+    C --> D[tool-registry: loadConverters]
+    D --> E[Scan tools/ for convert-*.ts files]
+    E --> F[Import & register each converter]
+    F --> G[Converters Map populated]
+    G --> H[LLMRuntime.chat called]
+    H --> I[buildToolSchemas]
+    I --> J[Read getAllConverters]
+    J --> K[Generate OpenAI function schemas]
+```
+
+### Tool Call Loop
+
+The LLM runtime supports chained tool calls — the model can invoke multiple tools sequentially before producing a final answer:
+
+```mermaid
+flowchart TD
+    A[Send messages to OpenAI] --> B{finish_reason?}
+    B -->|tool_calls| C[Execute each tool call]
+    C --> D[Append tool results to messages]
+    D --> A
+    B -->|stop| E[Return assistant content]
+```
+
 ### Auto-Discovery
 
 The `tool-registry.ts` module automatically discovers all `convert-*.ts` files in the `tools/` directory at runtime. Adding a new converter requires zero manual registration — just create the file.

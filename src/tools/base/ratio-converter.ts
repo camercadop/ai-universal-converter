@@ -11,8 +11,11 @@ export type ConversionFactors = Record<string, number>
  * @abstract
  */
 export class RatioConverter extends BaseConverter {
-  /** @type {ConversionFactors} Conversion factors relative to the base unit. Override in subclasses. */
   protected static readonly FACTORS: ConversionFactors = {}
+
+  static units(): string[] {
+    return Object.keys(this.FACTORS)
+  }
 
   /**
    * Converts a value from one unit to another using the subclass FACTORS.

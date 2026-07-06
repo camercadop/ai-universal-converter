@@ -4,13 +4,14 @@
  * @abstract
  */
 export class BaseConverter {
-  /**
-   * Validates if the provided unit is among the valid units.
-   *
-   * @param {string} unit - The unit to validate.
-   * @param {string[]} validUnits - List of accepted units.
-   * @throws {Error} If the unit is not valid.
-   */
+  /** Override in subclasses to describe the tool for the LLM. */
+  static readonly toolDescription: string = ''
+
+  /** Returns the list of supported units. Override in non-ratio converters. */
+  static units(): string[] {
+    return []
+  }
+
   protected static validateUnit(unit: string, validUnits: string[]): void {
     if (!validUnits.includes(unit.toLowerCase())) {
       throw new Error(
@@ -19,12 +20,6 @@ export class BaseConverter {
     }
   }
 
-  /**
-   * Validates if the provided value is a valid number.
-   *
-   * @param {number} value - The value to validate.
-   * @throws {Error} If the value is not a number or is NaN.
-   */
   protected static validateValue(value: number): void {
     if (typeof value !== 'number' || isNaN(value)) {
       throw new Error(`Invalid value: ${value}. Value must be a number.`)

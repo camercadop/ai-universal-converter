@@ -7,8 +7,12 @@ import { BaseConverter } from './base/base-converter.ts'
  * @extends BaseConverter
  */
 export class ConvertTemperature extends BaseConverter {
-  /** @type {readonly string[]} Supported temperature units. */
+  static readonly toolDescription = 'Convert between temperature units.'
   private static readonly UNITS = ['c', 'f', 'k'] as const
+
+  static units(): string[] {
+    return [...this.UNITS]
+  }
 
   /**
    * Converts a temperature value from one unit to another.

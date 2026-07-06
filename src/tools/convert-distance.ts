@@ -6,7 +6,7 @@ import { RatioConverter } from './base/ratio-converter.ts'
  * @extends RatioConverter
  */
 export class ConvertDistance extends RatioConverter {
-  /** @type {Record<string, number>} Conversion factors relative to meters. */
+  static readonly toolDescription = 'Convert between distance units.'
   protected static readonly FACTORS = {
     mm: 0.001,
     cm: 0.01,

@@ -6,7 +6,7 @@ import { RatioConverter } from './base/ratio-converter.ts'
  * @extends RatioConverter
  */
 export class ConvertStorage extends RatioConverter {
-  /** @type {Record<string, number>} Conversion factors relative to bytes. */
+  static readonly toolDescription = 'Convert between digital storage units.'
   protected static readonly FACTORS = {
     b: 1,
     kb: 1024,

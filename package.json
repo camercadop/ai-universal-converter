@@ -4,7 +4,9 @@
   "description": "AI Universal Converter - Experimental project exploring modern LLM capabilities through conversions and calculations.",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev": "npx tsx src/main.ts",
+    "start": "npx tsx src/main.ts"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +27,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
+    "dotenv": "^17.4.2",
     "openai": "^6.45.0",
     "zod": "^4.4.3"
   }

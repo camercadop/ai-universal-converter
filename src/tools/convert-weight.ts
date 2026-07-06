@@ -6,7 +6,7 @@ import { RatioConverter } from './base/ratio-converter.ts'
  * @extends RatioConverter
  */
 export class ConvertWeight extends RatioConverter {
-  /** @type {Record<string, number>} Conversion factors relative to kilograms. */
+  static readonly toolDescription = 'Convert between weight units.'
   protected static readonly FACTORS = {
     mg: 0.000001,
     g: 0.001,
