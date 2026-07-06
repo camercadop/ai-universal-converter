@@ -47,13 +47,10 @@ src/
 │   └── tool-registry.ts
 ├── schemas/
 │   └── tool-schemas.ts
-├── models/
-│   ├── conversation.ts
-│   └── tool-execution.ts
-├── database/
-│   └── sqlite.ts
 ├── tests/
-└── app.ts
+├── logger.ts
+├── app.ts
+└── main.ts
 ```
 
 ## Architecture
@@ -162,6 +159,27 @@ flowchart TD
     B -->|stop| E[Return assistant content]
 ```
 
+### Conversational Context
+
+The `ConversationManager` maintains message history across multiple `chat()` calls, enabling context-aware follow-up responses. It implements a dual pruning strategy:
+
+1. **Message-count pruning** — caps history at a configurable maximum (default 50 messages)
+2. **Token-budget pruning** — uses `tiktoken` to count tokens with the model's actual encoding and removes oldest non-system messages until the history fits within budget (default 8,000 tokens)
+
+The system prompt is always preserved during pruning.
+
+```mermaid
+flowchart TD
+    A[User sends message] --> B[Add to ConversationManager]
+    B --> C{Over message limit?}
+    C -->|yes| D[Remove oldest messages]
+    C -->|no| E{Over token budget?}
+    D --> E
+    E -->|yes| F[Remove oldest non-system message]
+    F --> E
+    E -->|no| G[Send full history to OpenAI]
+```
+
 ### Auto-Discovery
 
 The `tool-registry.ts` module automatically discovers all `convert-*.ts` files in the `tools/` directory at runtime. Adding a new converter requires zero manual registration — just create the file.
@@ -198,6 +216,7 @@ No additional registration needed.
 - **Language**: TypeScript
 - **Runtime**: Node.js
 - **LLM**: OpenAI SDK
+- **Token Management**: tiktoken
 - **Validation**: Zod
 - **Database**: SQLite
 - **Testing**: Vitest
@@ -216,9 +235,14 @@ Convert 100 USD to COP and divide the result by 25,000.
 
 ### Conversational Context
 ```
-Convert 100 USD to COP.
-Now multiply that result by 5.
+You: Convert 100 kilometers to miles.
+Assistant: 100 kilometers equals 62.14 miles.
+
+You: Now double that.
+Assistant: 62.14 × 2 = 124.27 miles.
 ```
+
+Type `reset` in the CLI to clear the session and start fresh.
 
 ### Complex Reasoning
 ```

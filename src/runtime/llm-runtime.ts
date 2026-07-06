@@ -32,7 +32,7 @@ export class LLMRuntime {
   constructor(model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini') {
     this.client = new OpenAI()
     this.model = model
-    this.conversation = new ConversationManager(SYSTEM_PROMPT)
+    this.conversation = new ConversationManager(SYSTEM_PROMPT, { model: model as any })
   }
 
   /**

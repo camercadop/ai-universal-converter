@@ -17,7 +17,7 @@ describe('ConversationManager', () => {
   })
 
   it('prunes when exceeding maxMessages', () => {
-    const cm = new ConversationManager('system', 5)
+    const cm = new ConversationManager('system', { maxMessages: 5 })
     for (let i = 0; i < 10; i++) {
       cm.addMessage({ role: 'user', content: `msg ${i}` })
     }
@@ -42,5 +42,20 @@ describe('ConversationManager', () => {
       { role: 'assistant', content: 'b' },
     ])
     expect(cm.getMessages()).toHaveLength(3)
+  })
+
+  it('reports token count', () => {
+    const cm = new ConversationManager('system')
+    const initialTokens = cm.getTokenCount()
+    cm.addMessage({ role: 'user', content: 'hello world' })
+    expect(cm.getTokenCount()).toBeGreaterThan(initialTokens)
+  })
+
+  it('prunes when exceeding maxTokens', () => {
+    // Very low token budget to force pruning
+    const cm = new ConversationManager('system', { maxTokens: 30 })
+    cm.addMessage({ role: 'user', content: 'This is a message with several words to consume tokens' })
+    cm.addMessage({ role: 'assistant', content: 'This is another long response that should push us over the limit' })
+    expect(cm.getTokenCount()).toBeLessThanOrEqual(30)
   })
 })
