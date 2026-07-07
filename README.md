@@ -36,6 +36,8 @@ src/
 ├── agent/
 │   ├── converter-agent.ts
 │   └── prompts.ts
+├── api/
+│   └── server.ts
 ├── runtime/
 │   ├── llm-runtime.ts
 │   ├── tool-executor.ts
@@ -55,7 +57,8 @@ src/
 ├── tests/
 ├── logger.ts
 ├── app.ts
-└── main.ts
+├── main.ts
+└── server.ts
 ```
 
 ## Architecture
@@ -108,10 +111,13 @@ classDiagram
 
 ```mermaid
 flowchart TD
-    User["👤 User\n(CLI)"]
+    CLIUser["👤 User\n(CLI)"]
+    HTTPUser["👤 User\n(HTTP Client)"]
 
     subgraph System["AI Universal Converter"]
         Main["main.ts\n(CLI Entry Point)"]
+        Server["server.ts\n(HTTP Entry Point)"]
+        API["api/server.ts\n(Express App)"]
         Agent["ConverterAgent\n(Orchestrator)"]
         Runtime["LLMRuntime\n(OpenAI Chat + Tool Loop)"]
         Executor["ToolExecutor\n(Dispatch)"]
@@ -122,7 +128,10 @@ flowchart TD
 
     OpenAI["☁️ OpenAI API"]
 
-    User -->|natural language| Main
+    CLIUser -->|natural language| Main
+    HTTPUser -->|JSON request| Server
+    Server --> API
+    API --> Agent
     Main --> Agent
     Agent --> Runtime
     Runtime -->|messages + schemas| OpenAI
@@ -330,6 +339,7 @@ The `ToolCache` provides LRU caching for deterministic tool results. Same inputs
 
 - **Language**: TypeScript
 - **Runtime**: Node.js
+- **HTTP Framework**: Express.js
 - **LLM**: OpenAI SDK
 - **Token Management**: tiktoken
 - **Validation**: Zod
@@ -337,17 +347,19 @@ The `ToolCache` provides LRU caching for deterministic tool results. Same inputs
 
 ## Usage Examples
 
-### Basic Conversion
+### CLI
+
+#### Basic Conversion
 ```
 Convert 50 kilometers to miles.
 ```
 
-### Multi-Step Conversion
+#### Multi-Step Conversion
 ```
 Convert 100 USD to COP and divide the result by 25,000.
 ```
 
-### Conversational Context
+#### Conversational Context
 ```
 You: Convert 100 kilometers to miles.
 Assistant: 100 kilometers equals 62.14 miles.
@@ -358,12 +370,36 @@ Assistant: 62.14 × 2 = 124.27 miles.
 
 Type `reset` in the CLI to clear the session and start fresh.
 
-### Complex Reasoning (Agentic)
+#### Complex Reasoning (Agentic)
 ```
 I will travel 350 km. My car consumes 8 liters per 100 km and fuel costs 15,000 COP per gallon. Estimate my trip expenses.
 ```
 
 The LLM breaks this into steps, using `calculate` for arithmetic and `convertVolume` for unit conversion, then combines the results into a final answer.
+
+### REST API
+
+#### Health Check
+```bash
+curl http://localhost:3000/api/health
+# { "status": "ok" }
+```
+
+#### Chat (Natural Language Request)
+```bash
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Convert 100 km to miles"}'
+# { "response": "100 kilometers equals 62.14 miles." }
+```
+
+#### Error Handling
+```bash
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{}'
+# 400 { "error": "A \"message\" string field is required." }
+```
 
 ## Installation
 
@@ -378,8 +414,11 @@ npm install
 # Run tests
 npm test
 
-# Start the application
+# Start the CLI
 npm start
+
+# Start the HTTP API server
+npm run start:api
 ```
 
 ## Development
@@ -389,9 +428,15 @@ npm start
 npm test
 ```
 
-### Running in Development Mode
+### Running CLI in Development Mode
 ```bash
 npm run dev
+```
+
+### Running API in Development Mode
+```bash
+npm run dev:api
+# Server listens on http://localhost:3000 (override with PORT env var)
 ```
 
 ### Building for Production

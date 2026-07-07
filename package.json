@@ -6,13 +6,16 @@
   "scripts": {
     "test": "vitest run",
     "dev": "npx tsx src/main.ts",
-    "start": "npx tsx src/main.ts"
+    "dev:api": "npx tsx src/server.ts",
+    "start": "npx tsx src/main.ts",
+    "start:api": "npx tsx src/server.ts"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "type": "module",
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^26.1.0",
     "@typescript-eslint/eslint-plugin": "^8.62.1",
     "@typescript-eslint/parser": "^8.62.1",
@@ -29,6 +32,7 @@
     "chalk": "^5.6.2",
     "consola": "^3.4.2",
     "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "openai": "^6.45.0",
     "tiktoken": "^1.0.22",
     "zod": "^4.4.3"
