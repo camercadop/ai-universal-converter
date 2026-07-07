@@ -39,7 +39,9 @@ src/
 ├── runtime/
 │   ├── llm-runtime.ts
 │   ├── tool-executor.ts
-│   └── conversation-manager.ts
+│   ├── conversation-manager.ts
+│   ├── observability.ts
+│   └── tool-cache.ts
 ├── tools/
 │   ├── base/
 │   │   ├── tool.ts
@@ -64,16 +66,42 @@ src/
 Tool (abstract)                → schema + execute contract
 ├── BaseConverter              → shared validation + schema generation from units/toolDescription
 │   ├── RatioConverter         → ratio-based convert logic (FACTORS + convert)
-│   │   ├── ConvertDistance
-│   │   ├── ConvertWeight
-│   │   ├── ConvertStorage
-│   │   ├── ConvertArea
-│   │   ├── ConvertVolume
-│   │   ├── ConvertSpeed
-│   │   ├── ConvertEnergy
-│   │   └── ConvertTime
-│   └── ConvertTemperature     → formula-based (owns its own convert)
+│   │   └── Convert{Type}     → concrete converters that only define FACTORS (distance, weight, storage, ...)
+│   └── ConvertTemperature     → formula-based (owns its own convert method)
 └── Calculate                  → general-purpose math expression evaluator
+```
+
+```mermaid
+classDiagram
+    Tool <|-- BaseConverter
+    Tool <|-- Calculate
+    BaseConverter <|-- RatioConverter
+    BaseConverter <|-- ConvertTemperature
+    RatioConverter <|-- ConvertType
+
+    class Tool {
+        <<abstract>>
+        schema + execute contract
+    }
+    class BaseConverter {
+        <<abstract>>
+        shared validation + schema generation
+    }
+    class RatioConverter {
+        <<abstract>>
+        ratio-based convert logic (FACTORS)
+    }
+    class ConvertTemperature {
+        formula-based (owns its own convert)
+    }
+    class ConvertType {
+        <<concrete>>
+        only defines FACTORS
+        distance, weight, storage, ...
+    }
+    class Calculate {
+        math expression evaluator
+    }
 ```
 
 ### C4 Level 2 — Container Diagram
@@ -157,15 +185,19 @@ flowchart TD
 
 ### Tool Call Loop
 
-The LLM runtime supports chained tool calls — the model can invoke multiple tools sequentially before producing a final answer:
+The LLM runtime supports chained tool calls — the model can invoke multiple tools in parallel before producing a final answer:
 
 ```mermaid
 flowchart TD
     A[Send messages to OpenAI] --> B{finish_reason?}
-    B -->|tool_calls| C[Execute each tool call]
-    C --> D[Append tool results to messages]
-    D --> A
-    B -->|stop| E[Return assistant content]
+    B -->|tool_calls| C[Execute tool calls in parallel]
+    C --> C1[Check cache]
+    C1 -->|hit| D[Return cached result]
+    C1 -->|miss| E[Execute & cache]
+    D --> F[Append tool results to messages]
+    E --> F
+    F --> A
+    B -->|stop| G[End trace & return content]
 ```
 
 ### Conversational Context
@@ -251,6 +283,48 @@ export class MyTool extends Tool {
 ```
 
 No additional registration needed.
+
+### Runtime Observability
+
+The `ObservabilityManager` provides full visibility into the request lifecycle:
+
+- **Execution traces** — per-request trace with unique ID and step-by-step breakdown
+- **Latency tracking** — duration for each LLM call, tool execution, and total request
+- **Token usage** — prompt/completion/total tokens accumulated across all LLM round-trips
+- **Tool statistics** — call count, average latency, cache hit ratio, and failure rate per tool
+- **Reasoning visualization** — CLI tree view showing the full reasoning chain when `TRACE=true`
+
+```
+┌ Trace a1b2c3d4
+├─ 🤖 OpenAI Chat (420ms)
+├─ 🔧 convertVolume (2ms) → 7.40
+├─ 🔧 calculate (1ms) [cached] → 111000
+├─ 🤖 OpenAI Chat (380ms)
+└ Total: 803ms | 275 tokens (180↑ 95↓) | 2 tool calls | 1 cache hits
+```
+
+Enable with: `TRACE=true npm run dev`
+
+### Tool Selection Optimization
+
+The `buildFilteredToolSchemas` function uses keyword matching to send only relevant tool schemas to OpenAI, reducing token usage and improving selection accuracy. Falls back to all schemas when no keywords match.
+
+### Tool Result Caching
+
+The `ToolCache` provides LRU caching for deterministic tool results. Same inputs always produce the same output for ratio converters and calculations, so results are cached to avoid redundant computation.
+
+## Coding Standards
+
+- **Classes over functions** — tools, runtime, and agent are class-based with static methods where appropriate
+- **JSDoc on all public methods** — include `@param`, `@returns`, and `@throws` tags
+- **Explicit access modifiers** — use `private` for internal class members
+- **`readonly` for constants** — static configuration properties use `static readonly`
+- **Type imports** — use `import type { ... }` for types that don't exist at runtime
+- **File naming** — kebab-case for all files (e.g. `convert-distance.ts`, `tool-executor.ts`)
+- **Class naming** — PascalCase (e.g. `ConvertDistance`, `LLMRuntime`)
+- **One class per file** — each tool/module lives in its own file
+- **No default exports** — use named exports exclusively
+- **Tests** — colocated in `src/tests/` with `.test.ts` suffix; test both happy paths and error cases; use `toBeCloseTo` for floating-point assertions
 
 ## Technology Stack
 
@@ -339,4 +413,5 @@ The project will be considered successful when it demonstrates:
 - Context-aware conversations
 - Agentic workflows within the conversion domain
 - Structured Outputs with schema-validated LLM responses
+- Runtime observability with execution traces and metrics
 - An extensible architecture suitable for future experimentation

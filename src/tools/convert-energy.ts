@@ -7,6 +7,7 @@ import { RatioConverter } from './base/ratio-converter.ts'
  */
 export class ConvertEnergy extends RatioConverter {
   static readonly toolDescription = 'Convert between energy units.'
+  static readonly keywords = ['joule', 'calorie', 'kwh', 'watt', 'btu', 'power']
   protected static readonly FACTORS = {
     j: 1,
     kj: 1000,

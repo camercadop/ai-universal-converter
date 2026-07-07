@@ -7,6 +7,7 @@ import { RatioConverter } from './base/ratio-converter.ts'
  */
 export class ConvertTime extends RatioConverter {
   static readonly toolDescription = 'Convert between time units.'
+  static readonly keywords = ['second', 'minute', 'hour', 'day', 'week', 'month', 'year', 'duration']
   protected static readonly FACTORS = {
     ms: 0.001,
     s: 1,

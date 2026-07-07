@@ -7,6 +7,7 @@ import { RatioConverter } from './base/ratio-converter.ts'
  */
 export class ConvertWeight extends RatioConverter {
   static readonly toolDescription = 'Convert between weight units.'
+  static readonly keywords = ['kg', 'kilogram', 'pound', 'lb', 'oz', 'ounce', 'gram', 'ton', 'heavy', 'mass']
   protected static readonly FACTORS = {
     mg: 0.000001,
     g: 0.001,

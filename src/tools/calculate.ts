@@ -9,6 +9,8 @@ import { Tool } from './base/tool.ts'
  * @extends Tool
  */
 export class Calculate extends Tool {
+  static readonly keywords = ['calculate', 'math', 'multiply', 'divide', 'add', 'subtract', 'sum', 'total', 'result', 'expression', 'formula', '*', '/', '+', '-']
+  static readonly alwaysInclude = true
   static readonly schema: FunctionDefinition = {
     name: 'calculate',
     description:

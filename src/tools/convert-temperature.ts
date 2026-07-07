@@ -8,6 +8,7 @@ import { BaseConverter } from './base/base-converter.ts'
  */
 export class ConvertTemperature extends BaseConverter {
   static readonly toolDescription = 'Convert between temperature units.'
+  static readonly keywords = ['celsius', 'fahrenheit', 'kelvin', 'degree', 'hot', 'cold', 'warm']
   private static readonly UNITS = ['c', 'f', 'k'] as const
 
   static units(): string[] {

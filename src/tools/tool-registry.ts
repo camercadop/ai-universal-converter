@@ -7,6 +7,8 @@ import { logger } from '../logger.ts'
 /** Static interface that any discoverable tool must satisfy. */
 type ToolClass = {
   readonly schema: FunctionDefinition
+  readonly keywords?: string[]
+  readonly alwaysInclude?: boolean
   execute(rawArgs: string): number | string
 }
 

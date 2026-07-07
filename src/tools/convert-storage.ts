@@ -7,6 +7,7 @@ import { RatioConverter } from './base/ratio-converter.ts'
  */
 export class ConvertStorage extends RatioConverter {
   static readonly toolDescription = 'Convert between digital storage units.'
+  static readonly keywords = ['byte', 'kb', 'mb', 'gb', 'tb', 'megabyte', 'gigabyte', 'terabyte', 'data', 'disk', 'file size']
   protected static readonly FACTORS = {
     b: 1,
     kb: 1024,

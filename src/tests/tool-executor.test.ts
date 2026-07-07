@@ -18,8 +18,9 @@ describe('tool-schemas', () => {
     const toolSchemas = buildToolSchemas()
     for (const schema of toolSchemas) {
       expect(schema.type).toBe('function')
-      expect(schema.function.name).toBeDefined()
-      expect(schema.function.parameters).toBeDefined()
+      const fn = (schema as { type: 'function'; function: { name: string; parameters: unknown } }).function
+      expect(fn.name).toBeDefined()
+      expect(fn.parameters).toBeDefined()
     }
   })
 })

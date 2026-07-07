@@ -7,6 +7,7 @@ import { RatioConverter } from './base/ratio-converter.ts'
  */
 export class ConvertArea extends RatioConverter {
   static readonly toolDescription = 'Convert between area units.'
+  static readonly keywords = ['square', 'hectare', 'acre', 'sq']
   protected static readonly FACTORS = {
     mm2: 1e-6,
     cm2: 0.0001,

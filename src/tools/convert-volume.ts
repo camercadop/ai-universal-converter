@@ -7,6 +7,7 @@ import { RatioConverter } from './base/ratio-converter.ts'
  */
 export class ConvertVolume extends RatioConverter {
   static readonly toolDescription = 'Convert between volume units.'
+  static readonly keywords = ['liter', 'gallon', 'cup', 'pint', 'quart', 'ml', 'fluid']
   protected static readonly FACTORS = {
     ml: 1e-6,
     l: 0.001,

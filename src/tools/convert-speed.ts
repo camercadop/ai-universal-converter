@@ -7,6 +7,7 @@ import { RatioConverter } from './base/ratio-converter.ts'
  */
 export class ConvertSpeed extends RatioConverter {
   static readonly toolDescription = 'Convert between speed units.'
+  static readonly keywords = ['km/h', 'mph', 'm/s', 'knot', 'velocity', 'fast']
   protected static readonly FACTORS = {
     'm/s': 1,
     'km/h': 0.27777777777778,

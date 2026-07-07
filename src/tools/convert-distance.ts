@@ -7,6 +7,7 @@ import { RatioConverter } from './base/ratio-converter.ts'
  */
 export class ConvertDistance extends RatioConverter {
   static readonly toolDescription = 'Convert between distance units.'
+  static readonly keywords = ['km', 'mile', 'meter', 'foot', 'feet', 'yard', 'inch', 'centimeter', 'millimeter', 'far', 'long']
   protected static readonly FACTORS = {
     mm: 0.001,
     cm: 0.01,
