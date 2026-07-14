@@ -1,0 +1,322 @@
+# Architecture
+
+## Project Structure
+
+```
+src/
+├── agent/
+│   ├── converter-agent.ts
+│   └── prompts.ts
+├── api/
+│   └── server.ts
+├── runtime/
+│   ├── llm-runtime.ts
+│   ├── tool-executor.ts
+│   ├── conversation-manager.ts
+│   ├── observability.ts
+│   └── tool-cache.ts
+├── tools/
+│   ├── base/
+│   │   ├── tool.ts
+│   │   ├── base-converter.ts
+│   │   └── ratio-converter.ts
+│   ├── calculate.ts
+│   ├── convert-*.ts
+│   └── tool-registry.ts
+├── schemas/
+│   ├── tool-schemas.ts
+│   └── response-schemas.ts
+├── tests/
+├── logger.ts
+├── app.ts
+├── main.ts
+└── server.ts
+```
+
+## Tool Hierarchy
+
+```
+Tool (abstract)                → schema + execute contract
+├── BaseConverter              → shared validation + schema generation from units/toolDescription
+│   ├── RatioConverter         → ratio-based convert logic (FACTORS + convert)
+│   │   └── Convert{Type}     → concrete converters that only define FACTORS (distance, weight, storage, ...)
+│   └── ConvertTemperature     → formula-based (owns its own convert method)
+└── Calculate                  → general-purpose math expression evaluator
+```
+
+```mermaid
+classDiagram
+    Tool <|-- BaseConverter
+    Tool <|-- Calculate
+    BaseConverter <|-- RatioConverter
+    BaseConverter <|-- ConvertTemperature
+    RatioConverter <|-- ConvertType
+
+    class Tool {
+        <<abstract>>
+        schema + execute contract
+    }
+    class BaseConverter {
+        <<abstract>>
+        shared validation + schema generation
+    }
+    class RatioConverter {
+        <<abstract>>
+        ratio-based convert logic (FACTORS)
+    }
+    class ConvertTemperature {
+        formula-based (owns its own convert)
+    }
+    class ConvertType {
+        <<concrete>>
+        only defines FACTORS
+        distance, weight, storage, ...
+    }
+    class Calculate {
+        math expression evaluator
+    }
+```
+
+## C4 Level 0 — System Context Diagram
+
+```mermaid
+flowchart TD
+    User["User\n(Developer / End User)"]
+    System["AI Universal Converter\n(Conversions & Calculations via LLM)"]
+    OpenAI["OpenAI API\n(External LLM Provider)"]
+
+    User -->|natural language requests| System
+    System -->|chat completions + tool calls| OpenAI
+    OpenAI -->|responses + tool invocations| System
+    System -->|conversion results| User
+```
+
+## C4 Level 1 — System Decomposition
+
+```mermaid
+flowchart TD
+    subgraph System["AI Universal Converter"]
+        EntryPoints["Entry Points\n(CLI + HTTP API)"]
+        Agent["Agent Layer\n(Orchestration + Prompts)"]
+        Runtime["Runtime Layer\n(LLM Loop, Tool Execution,\nConversation, Observability, Cache)"]
+        Tools["Tools Layer\n(Converters + Calculate + Registry)"]
+        Schemas["Schemas Layer\n(Tool & Response Schemas)"]
+    end
+
+    User["User"] -->|input| EntryPoints
+    EntryPoints --> Agent
+    Agent --> Runtime
+    Runtime --> Tools
+    Runtime --> Schemas
+    Schemas --> Tools
+    Runtime -->|API calls| OpenAI["OpenAI API"]
+```
+
+## C4 Level 2 — Container Diagram
+
+```mermaid
+flowchart TD
+    CLIUser["User\n(CLI)"]
+    HTTPUser["User\n(HTTP Client)"]
+
+    subgraph System["AI Universal Converter"]
+        Main["main.ts\n(CLI Entry Point)"]
+        Server["server.ts\n(HTTP Entry Point)"]
+        API["api/server.ts\n(Express App)"]
+        Agent["ConverterAgent\n(Orchestrator)"]
+        Runtime["LLMRuntime\n(OpenAI Chat + Tool Loop)"]
+        Executor["ToolExecutor\n(Dispatch)"]
+        Registry["ToolRegistry\n(Auto-Discovery)"]
+        Schemas["ToolSchemas\n(Dynamic Schema Builder)"]
+        Tools["Tools\n(Converters + Calculate)"]
+    end
+
+    OpenAI["OpenAI API"]
+
+    CLIUser -->|natural language| Main
+    HTTPUser -->|JSON request| Server
+    Server --> API
+    API --> Agent
+    Main --> Agent
+    Agent --> Runtime
+    Runtime -->|messages + schemas| OpenAI
+    OpenAI -->|tool_calls / response| Runtime
+    Runtime --> Executor
+    Executor --> Registry
+    Registry --> Tools
+    Runtime --> Schemas
+    Schemas --> Registry
+```
+
+## Application Flow
+
+The complete request lifecycle from user input to final response:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI (main.ts)
+    participant ConverterAgent
+    participant LLMRuntime
+    participant OpenAI API
+    participant ToolExecutor
+    participant ToolRegistry
+
+    User->>CLI (main.ts): Natural language input
+    CLI (main.ts)->>ConverterAgent: ask(message)
+    ConverterAgent->>LLMRuntime: chat(message)
+    LLMRuntime->>OpenAI API: messages + tool schemas
+    OpenAI API-->>LLMRuntime: tool_calls (e.g. convertDistance, calculate)
+    LLMRuntime->>ToolExecutor: executeTool(toolCall)
+    ToolExecutor->>ToolRegistry: getTool(name)
+    ToolRegistry-->>ToolExecutor: Tool class
+    ToolExecutor->>ToolExecutor: tool.execute(rawArgs)
+    ToolExecutor-->>LLMRuntime: ToolCallResult
+    LLMRuntime->>OpenAI API: messages + tool results
+    OpenAI API-->>LLMRuntime: final text response
+    LLMRuntime-->>ConverterAgent: response string
+    ConverterAgent-->>CLI (main.ts): response string
+    CLI (main.ts)-->>User: Assistant: ...
+```
+
+## Initialization Flow
+
+At startup, the system auto-discovers all tools and builds schemas dynamically:
+
+```mermaid
+flowchart TD
+    A[main.ts] --> B[ConverterAgent.init]
+    B --> C[ConversionEngine.init]
+    C --> D[tool-registry: loadTools]
+    D --> E[Scan tools/ for .ts files]
+    E --> F[Import & register each Tool class]
+    F --> G[Tools Map populated]
+    G --> H[LLMRuntime.chat called]
+    H --> I[buildToolSchemas]
+    I --> J[Read getAllTools]
+    J --> K[Wrap each tool.schema as ChatCompletionTool]
+```
+
+## Tool Call Loop
+
+The LLM runtime supports chained tool calls — the model can invoke multiple tools in parallel before producing a final answer:
+
+```mermaid
+flowchart TD
+    A[Send messages to OpenAI] --> B{finish_reason?}
+    B -->|tool_calls| C[Execute tool calls in parallel]
+    C --> C1[Check cache]
+    C1 -->|hit| D[Return cached result]
+    C1 -->|miss| E[Execute & cache]
+    D --> F[Append tool results to messages]
+    E --> F
+    F --> A
+    B -->|stop| G[End trace & return content]
+```
+
+## Conversational Context
+
+The `ConversationManager` maintains message history across multiple `chat()` calls, enabling context-aware follow-up responses. It implements a dual pruning strategy:
+
+1. **Message-count pruning** — caps history at a configurable maximum (default 50 messages)
+2. **Token-budget pruning** — uses `tiktoken` to count tokens with the model's actual encoding and removes oldest non-system messages until the history fits within budget (default 8,000 tokens)
+
+The system prompt is always preserved during pruning.
+
+```mermaid
+flowchart TD
+    A[User sends message] --> B[Add to ConversationManager]
+    B --> C{Over message limit?}
+    C -->|yes| D[Remove oldest messages]
+    C -->|no| E{Over token budget?}
+    D --> E
+    E -->|yes| F[Remove oldest non-system message]
+    F --> E
+    E -->|no| G[Send full history to OpenAI]
+```
+
+## Auto-Discovery
+
+The `tool-registry.ts` module automatically discovers all `.ts` files in the `tools/` directory at runtime. Any exported class with a static `schema` and `execute` method (the `Tool` contract) is registered automatically. Adding a new tool requires zero manual registration — just create the file.
+
+## Tool Selection Optimization
+
+The `buildFilteredToolSchemas` function uses keyword matching to send only relevant tool schemas to OpenAI, reducing token usage and improving selection accuracy. Falls back to all schemas when no keywords match.
+
+## Tool Result Caching
+
+The `ToolCache` provides LRU caching for deterministic tool results. Same inputs always produce the same output for ratio converters and calculations, so results are cached to avoid redundant computation.
+
+## Runtime Observability
+
+The `ObservabilityManager` provides full visibility into the request lifecycle:
+
+- **Execution traces** — per-request trace with unique ID and step-by-step breakdown
+- **Latency tracking** — duration for each LLM call, tool execution, and total request
+- **Token usage** — prompt/completion/total tokens accumulated across all LLM round-trips
+- **Tool statistics** — call count, average latency, cache hit ratio, and failure rate per tool
+- **Reasoning visualization** — CLI tree view showing the full reasoning chain when `TRACE=true`
+
+```
+Trace a1b2c3d4
+-- OpenAI Chat (420ms)
+-- convertVolume (2ms) -> 7.40
+-- calculate (1ms) [cached] -> 111000
+-- OpenAI Chat (380ms)
+Total: 803ms | 275 tokens (180 up, 95 down) | 2 tool calls | 1 cache hits
+```
+
+Enable with: `TRACE=true npm run dev`
+
+## Extensibility
+
+### Adding a New Converter
+
+Create a file `src/tools/convert-pressure.ts`:
+
+```typescript
+import { RatioConverter } from './base/ratio-converter.ts'
+
+export class ConvertPressure extends RatioConverter {
+  static readonly toolDescription = 'Convert between pressure units.'
+  protected static readonly FACTORS = {
+    'Pa': 1,
+    'atm': 101325,
+    'bar': 100000,
+    'psi': 6894.76,
+  }
+}
+```
+
+No additional registration needed.
+
+### Adding a New Standalone Tool
+
+Create a file `src/tools/my-tool.ts`:
+
+```typescript
+import type { FunctionDefinition } from 'openai/resources/shared'
+import { Tool } from './base/tool.ts'
+
+export class MyTool extends Tool {
+  static readonly schema: FunctionDefinition = {
+    name: 'myTool',
+    description: 'Does something useful.',
+    parameters: {
+      type: 'object',
+      properties: {
+        input: { type: 'string', description: 'The input.' },
+      },
+      required: ['input'],
+    },
+  }
+
+  static execute(rawArgs: string): number | string {
+    const { input } = JSON.parse(rawArgs)
+    // ... tool logic
+    return result
+  }
+}
+```
+
+No additional registration needed.

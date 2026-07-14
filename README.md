@@ -15,6 +15,12 @@ The project evolves incrementally, allowing experimentation with:
 - Reasoning Workflows
 - Agentic Behaviors
 
+## Motivation
+
+Most LLM tutorials demonstrate capabilities in isolation (a single tool call, a single structured output). This project takes a different approach: it builds a complete, production-shaped system around one narrow domain so that each capability can be learned in context, composed with others, and tested end-to-end.
+
+The conversion domain was chosen because it is deterministic, easy to verify, and naturally supports multi-step reasoning (e.g., unit conversion followed by arithmetic).
+
 ## Primary Goals
 
 - Learn and demonstrate modern OpenAI capabilities
@@ -28,6 +34,19 @@ The project evolves incrementally, allowing experimentation with:
 - Experiment with multi-step planning
 - Implement persistent conversational context
 - Create reusable abstractions for tool execution
+
+## Technology Stack
+
+| Category | Technology |
+|---|---|
+| Language | TypeScript |
+| Runtime | Node.js >= 22 |
+| HTTP Framework | Express.js |
+| LLM | OpenAI SDK |
+| Token Management | tiktoken |
+| Validation | Zod |
+| Testing | Vitest |
+| Linting | ESLint + Prettier |
 
 ## Project Structure
 
@@ -53,7 +72,8 @@ src/
 │   ├── convert-*.ts
 │   └── tool-registry.ts
 ├── schemas/
-│   └── tool-schemas.ts
+│   ├── tool-schemas.ts
+│   └── response-schemas.ts
 ├── tests/
 ├── logger.ts
 ├── app.ts
@@ -245,17 +265,18 @@ ConversionEngine.getAvailableTypes() // ['distance', 'weight', 'storage', 'tempe
 
 ### Adding a New Converter
 
-Create a file `src/tools/convert-speed.ts`:
+Create a file `src/tools/convert-pressure.ts`:
 
 ```typescript
 import { RatioConverter } from './base/ratio-converter.ts'
 
-export class ConvertSpeed extends RatioConverter {
-  static readonly toolDescription = 'Convert between speed units.'
+export class ConvertPressure extends RatioConverter {
+  static readonly toolDescription = 'Convert between pressure units.'
   protected static readonly FACTORS = {
-    'km/h': 1,
-    'mph': 1.60934,
-    'm/s': 3.6,
+    'Pa': 1,
+    'atm': 101325,
+    'bar': 100000,
+    'psi': 6894.76,
   }
 }
 ```
@@ -335,16 +356,6 @@ The `ToolCache` provides LRU caching for deterministic tool results. Same inputs
 - **No default exports** — use named exports exclusively
 - **Tests** — colocated in `src/tests/` with `.test.ts` suffix; test both happy paths and error cases; use `toBeCloseTo` for floating-point assertions
 
-## Technology Stack
-
-- **Language**: TypeScript
-- **Runtime**: Node.js
-- **HTTP Framework**: Express.js
-- **LLM**: OpenAI SDK
-- **Token Management**: tiktoken
-- **Validation**: Zod
-- **Testing**: Vitest
-
 ## Usage Examples
 
 ### CLI
@@ -401,6 +412,34 @@ curl -X POST http://localhost:3000/api/chat \
 # 400 { "error": "A \"message\" string field is required." }
 ```
 
+## Prerequisites
+
+- Node.js >= 22.x
+- npm >= 10.x
+
+## Continuous Integration
+
+The project uses GitHub Actions for CI. The workflow (`.github/workflows/ci.yml`) runs on every push and pull request to `main`:
+
+1. Install dependencies (`npm ci`)
+2. Lint (`npm run lint`)
+3. Run tests (`npm test`)
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in the required values:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `OPENAI_API_KEY` | Yes | — | Your OpenAI API key |
+| `OPENAI_MODEL` | No | `gpt-4o-mini` | Model to use for chat completions |
+| `TRACE` | No | `false` | Set to `true` to enable runtime observability traces in the CLI |
+| `PORT` | No | `3000` | HTTP server port (API mode only) |
+
 ## Installation
 
 ```bash
@@ -410,6 +449,10 @@ cd ai-universal-converter
 
 # Install dependencies
 npm install
+
+# Configure environment
+cp .env.example .env
+# Edit .env and add your OPENAI_API_KEY
 
 # Run tests
 npm test
@@ -439,24 +482,18 @@ npm run dev:api
 # Server listens on http://localhost:3000 (override with PORT env var)
 ```
 
-### Building for Production
-```bash
-npm run build
-```
+## Documentation
+
+| Document | Description |
+|---|---|
+| [Architecture](docs/architecture.md) | System design, diagrams, and component overview |
+| [Adding a Converter](docs/guides/adding-a-converter.md) | How to add a ratio-based or formula-based converter |
+| [Adding a Standalone Tool](docs/guides/adding-a-standalone-tool.md) | How to add a non-converter tool |
+| [Running the CLI](docs/guides/running-the-cli.md) | How to use the interactive CLI mode |
+| [Running the API](docs/guides/running-the-api.md) | How to use the REST API |
+| [Enabling Observability](docs/guides/enabling-observability.md) | How to enable and read runtime traces |
+| [Writing Tests](docs/guides/writing-tests.md) | How to write tests following project conventions |
 
 ## License
 
-This project is licensed under the MIT License.
-
-## Success Criteria
-
-The project will be considered successful when it demonstrates:
-
-- Reliable Tool Calling
-- Modular tool execution
-- Multi-step reasoning
-- Context-aware conversations
-- Agentic workflows within the conversion domain
-- Structured Outputs with schema-validated LLM responses
-- Runtime observability with execution traces and metrics
-- An extensible architecture suitable for future experimentation
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
