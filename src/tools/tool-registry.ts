@@ -43,13 +43,15 @@ async function loadTools(): Promise<void> {
 
 /** Checks if an export satisfies the Tool contract (schema + execute). */
 function isToolClass(value: unknown): boolean {
+  if (typeof value !== 'function' || !('schema' in value) || !('execute' in value)) {
+    return false
+  }
+  const v = value as Record<string, unknown>
   return (
-    typeof value === 'function' &&
-    'schema' in value &&
-    'execute' in value &&
-    typeof (value as any).schema === 'object' &&
-    typeof (value as any).schema.name === 'string' &&
-    typeof (value as any).execute === 'function'
+    typeof v.schema === 'object' &&
+    v.schema !== null &&
+    typeof (v.schema as Record<string, unknown>).name === 'string' &&
+    typeof v.execute === 'function'
   )
 }
 

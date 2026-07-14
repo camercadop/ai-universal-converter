@@ -18,6 +18,7 @@ export class BaseConverter extends Tool {
   }
 
   /** Performs the conversion. Override in subclasses. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static convert(value: number, from: string, to: string): number {
     throw new Error('convert() must be implemented by subclass')
   }

@@ -25,6 +25,7 @@ export abstract class Tool {
    *
    * @returns {number | string} The tool result.
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static execute(rawArgs: string): number | string {
     throw new Error('execute() must be implemented by subclass')
   }

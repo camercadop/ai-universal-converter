@@ -44,7 +44,7 @@ export class LLMRuntime {
     this.client = new OpenAI()
     this.model = model
     this.conversation = new ConversationManager(systemPrompt, {
-      model: model as any,
+      model,
     })
     this.observability = new ObservabilityManager()
     this.enableToolFiltering = process.env.TOOL_FILTERING !== 'false'
