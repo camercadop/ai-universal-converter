@@ -53,8 +53,7 @@ temp/
 # npm
 npm-debug.log*
 nlrb.log*
-yarn.lock
-package-lock.json
+
 
 # Jest
 jest-coverage
