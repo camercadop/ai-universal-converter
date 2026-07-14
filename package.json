@@ -4,6 +4,7 @@
   "description": "AI Universal Converter - Experimental project exploring modern LLM capabilities through conversions and calculations.",
   "main": "index.js",
   "scripts": {
+    "lint": "eslint src/",
     "test": "vitest run",
     "dev": "npx tsx src/main.ts",
     "dev:api": "npx tsx src/server.ts",
